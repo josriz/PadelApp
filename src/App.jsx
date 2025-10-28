@@ -1,7 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// RIMOZIONE: import { createClient } from '@supabase/supabase-js';
-// CAUSA DELL'ERRORE: Questo ambiente non supporta l'importazione diretta di pacchetti NPM.
-// SOLUZIONE: Ritorno al caricamento dinamico tramite CDN per la compatibilità con il Canvas.
 
 // --- Supabase Configuration (IMPORTANT: Keys inserted below) ---
 // Chiavi fornite dall'utente:
@@ -9,26 +6,12 @@ const SUPABASE_URL = 'https://lshvnwryhqlvjhxqscla.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaHZud3J5aHFsdmpoeHFzY2xhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyOTc0MzcsImV4cCI6MjA3Njg3MzQzN30.wKxHKzbcWAH2WgdkuQ6pcRS82gMVMnWZx1GWpP2Kimg';
 
 // URL del CDN di Supabase (per questo ambiente)
-const SUPABASE_CDN_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'; 
+// NON PIÙ USATO DIRETTAMENTE, ma lasciato come nota.
+// const SUPABASE_CDN_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'; 
 
 // --- LOGO CONFIGURATION (URL Pubblico) ---
 const LOGO_URL = 'https://lshvnwryhqlvjhxqscla.supabase.co/storage/v1/object/public/app-assets/intro2.png'; 
 const LOGO_ALT = 'Logo Personale Applicazione';
-
-// Funzione per caricare Supabase tramite CDN
-const loadSupabaseScript = () => {
-    return new Promise((resolve, reject) => {
-        // Controlla se è già stato caricato
-        if (window.supabase) {
-            return resolve();
-        }
-        const script = document.createElement('script');
-        script.src = SUPABASE_CDN_URL;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error('Failed to load Supabase script from CDN.'));
-        document.head.appendChild(script);
-    });
-};
 
 
 // Componente Logo Semplice
@@ -55,69 +38,84 @@ const App = () => {
     
     const isConfigured = true;
 
-    // --- Inizializzazione Supabase e Listener (ADATTATO) ---
+    // --- Inizializzazione Supabase e Listener (ORA CON POLLING PER IL CDN) ---
     useEffect(() => {
         let authListener = null;
+        let clientCheckInterval = null;
         
-        const initializeSupabase = async () => {
-            setLoading(true);
-            setError('');
-            setMessage('');
-            
-            if (!isConfigured) {
-                setError("ERRORE DI CONFIGURAZIONE: Incolla l'URL e la Chiave Anonima di Supabase.");
-                setLoading(false);
-                return;
-            }
-            
-            try {
-                // 1. Carica lo script Supabase
-                await loadSupabaseScript(); 
-
-                if (!window.supabase || !window.supabase.createClient) {
-                     throw new Error("Supabase was loaded, but the client function is missing.");
-                }
+        const checkAndInitialize = () => {
+            // Controlla se la libreria Supabase è stata caricata dal CDN
+            if (window.supabase && window.supabase.createClient) {
                 
-                // 2. INIZIALIZZAZIONE: Usa createClient disponibile globalmente
-                const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                setSupabaseClient(client);
+                // La libreria è pronta, ferma il polling
+                clearInterval(clientCheckInterval);
+                console.log("Supabase CDN caricato e pronto per l'inizializzazione.");
+                
+                try {
+                    // 1. INIZIALIZZAZIONE: Usa createClient disponibile globalmente
+                    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    setSupabaseClient(client);
 
-                const { data } = client.auth.onAuthStateChange(
-                    (event, session) => {
-                        setUser(session?.user ?? null);
-                        if (event === 'SIGNED_IN') {
-                            setMessage("Accesso o registrazione riusciti!");
+                    // 2. Listener per lo stato di autenticazione
+                    const { data } = client.auth.onAuthStateChange(
+                        (event, session) => {
+                            setUser(session?.user ?? null);
+                            if (event === 'SIGNED_IN') {
+                                setMessage("Accesso o registrazione riusciti!");
+                            }
+                            if (event === 'SIGNED_OUT') {
+                                setMessage("Logout effettuato.");
+                            }
+                            // Mantiene lo stato di loading su false per gli aggiornamenti successivi
                         }
-                        if (event === 'SIGNED_OUT') {
-                            setMessage("Logout effettuato.");
-                        }
+                    );
+                    
+                    authListener = data.subscription;
+
+                    // 3. Controllo dello stato iniziale
+                    client.auth.getSession().then(({ data: sessionData }) => {
+                        setUser(sessionData.session?.user ?? null);
+                        setLoading(false); // Stato di loading off solo dopo il controllo sessione
+                    }).catch(e => {
+                        console.error("Errore nel controllo della sessione Supabase:", e);
+                        setError(`Errore: Impossibile controllare la sessione Supabase. ${e.message}`);
                         setLoading(false);
-                    }
-                );
-                
-                authListener = data.subscription;
-
-                const { data: sessionData } = await client.auth.getSession();
-                setUser(sessionData.session?.user ?? null);
-                
-            } catch (e) {
-                console.error("Errore nell'inizializzazione di Supabase:", e);
-                setError(`Errore critico: Impossibile inizializzare Supabase. ${e.message}`);
-            } finally {
-                setLoading(false);
+                    });
+                    
+                } catch (e) {
+                    console.error("Errore nell'inizializzazione di Supabase:", e);
+                    setError(`Errore critico: Impossibile inizializzare Supabase. ${e.message}`);
+                    setLoading(false);
+                }
+            } else {
+                 // CDN non ancora caricato, continua ad aspettare
+                 // console.log("Supabase CDN non ancora caricato. In attesa...");
             }
         };
 
-        initializeSupabase();
-        
+        setLoading(true);
+        setError('');
+        setMessage('');
+
+        if (!isConfigured) {
+            setError("ERRORE DI CONFIGURAZIONE: Incolla l'URL e la Chiave Anonima di Supabase.");
+            setLoading(false);
+            return;
+        }
+
+        // Avvia il polling (controlla ogni 100ms)
+        clientCheckInterval = setInterval(checkAndInitialize, 100);
+
         return () => {
+             // Cleanup: pulisce sia l'intervallo che il listener di autenticazione
+             clearInterval(clientCheckInterval);
              if (authListener) {
                 authListener.unsubscribe();
             }
         };
     }, [isConfigured]);
     
-    // --- Authentication Handlers ---
+    // --- Authentication Handlers (Aggiornamento catch Google Login) ---
     
     const handleRegister = useCallback(async (e) => {
         e.preventDefault();
@@ -181,7 +179,7 @@ const App = () => {
 
         } catch (e) {
             setError(`Accesso Google fallito: ${e.message}`);
-            setLoading(false);
+            setLoading(false); // Aggiornato: Assicura che loading sia off in caso di errore
         }
     }, [supabaseClient]);
 
@@ -411,7 +409,7 @@ const App = () => {
         );
     };
 
-    // Auth Form (Login/Register) - non modificato...
+    // Auth Form (Login/Register)
     const AuthForm = () => (
         <div className="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-xl shadow-2xl">
             <Logo />
@@ -502,6 +500,18 @@ const App = () => {
     // --- Main Rendering ---
     return (
         <div className="min-h-screen bg-gray-900 text-white font-sans flex items-center justify-center p-4">
+            {loading && (
+                 <div className="absolute inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center">
+                    <div className="flex flex-col items-center">
+                        <svg className="animate-spin h-8 w-8 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p className="mt-4 text-white">Caricamento...</p>
+                    </div>
+                </div>
+            )}
+            
             {user
                 ? <MainContent /> // Show main content (ToDo List) if logged in
                 : <AuthForm /> // Show auth form if not logged in

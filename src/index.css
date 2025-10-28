@@ -1,27 +1,13 @@
-/* Queste direttive sono fondamentali per includere tutti gli stili Tailwind.
-Assicurano che le classi come 'bg-gray-900', 'text-white' e i modificatori
-come 'hover:' e 'focus:' funzionino correttamente in produzione.
-*/
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
 
-/* Stili Globali Aggiuntivi /
-body {
-/ Imposta il font di default 'sans' di Tailwind e un colore di sfondo uniforme /
-font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-background-color: #111827; / Corrisponde a bg-gray-900 usato nell'App */
-}
+// RIMOZIONE CRITICA: Abbiamo rimosso 'import './index.css';' 
+// per risolvere l'errore di sintassi nel CSS problematico che bloccava il deploy.
+// L'App si basa completamente su Tailwind CSS (caricato via CDN in index.html).
 
-/* Fornisce un box-sizing più intuitivo per tutti gli elementi */
-*, *::before, *::after {
-box-sizing: border-box;
-}
-
-/* Assicura che l'app occupi l'intera altezza del viewport */
-#root {
-min-height: 100vh;
-display: flex;
-justify-content: center;
-align-items: center;
-}
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
