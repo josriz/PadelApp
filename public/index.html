@@ -2,17 +2,35 @@
 <html lang="it">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="To-Do App Padel - Deploy su Render"
-    />
-    <title>Padel App To-Do List</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Supabase Auth/Todo App</title>
+    
+    <!-- Link per il font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    
+    <!-- CDN di Tailwind CSS per gli stili (Versione 3.4.4) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* Imposta il font Inter come predefinito per tutto il corpo */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Sfondo scuro per coerenza */
+        }
+    </style>
+
+    <!-- !!! RISOLUZIONE DELL'ERRORE CRITICO: Aggiunta del CDN di Supabase !!! -->
+    <!-- Questo carica l'SDK di Supabase e lo rende disponibile come oggetto globale 'window.supabase' -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 </head>
-<body class="bg-gray-50">
+<body>
     <noscript>Devi abilitare JavaScript per eseguire questa app.</noscript>
-    <!-- Qui viene iniettato il codice React compilato -->
     <div id="root"></div>
+    <!-- 
+        Il tuo bundler (vite, webpack, ecc.) iniettarà qui lo script 
+        che esegue il codice React, compreso AuthApp.jsx.
+    -->
+    <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>
